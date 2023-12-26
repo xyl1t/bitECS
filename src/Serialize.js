@@ -1,6 +1,6 @@
 import { $indexBytes, $indexType, $isEidType, $serializeShadow, $storeBase, $storeFlattened, $tagStore, createShadow } from "./Storage.js"
 import { $componentMap, addComponent, hasComponent } from "./Component.js"
-import { $entityArray, $entitySparseSet, addEntity, eidToWorld } from "./Entity.js"
+import { $entityArray, $entitySparseSet, addEntity, eidToWorld, removeEntity } from "./Entity.js"
 import { $localEntities, $localEntityLookup } from "./World.js"
 import { SparseSet } from "./Util.js"
 import { $modifier } from "./Query.js"
@@ -8,7 +8,8 @@ import { $modifier } from "./Query.js"
 export const DESERIALIZE_MODE = {
   REPLACE: 0,
   APPEND: 1,
-  MAP: 2
+  MAP: 2,
+  MAP_REPLACING: 3
 }
 
 let resized = false
@@ -303,6 +304,12 @@ export const defineDeserializer = (target) => {
     const localEntities = world[$localEntities]
     const localEntityLookup = world[$localEntityLookup]
 
+    // Map of entities to remove
+    let localEntitiesToRemove;
+    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+      localEntitiesToRemove = new Map(localEntities);
+    }
+
     const view = new DataView(packet)
     let where = 0
 
@@ -324,7 +331,12 @@ export const defineDeserializer = (target) => {
         let eid = view.getUint32(where) // throws with [changed, c, changed]
         where += 4
 
-        if (mode === DESERIALIZE_MODE.MAP) {
+        // remove entity from list of entities to remove if the world has the entity
+        if (mode === DESERIALIZE_MODE.MAP_REPLACING && localEntities.has(eid)) {
+          localEntitiesToRemove.delete(eid)
+        }
+
+        if (mode === DESERIALIZE_MODE.MAP || mode === DESERIALIZE_MODE.MAP_REPLACING) {
           if (localEntities.has(eid)) {
             eid = localEntities.get(eid)
           } else if (newEntities.has(eid)) {
@@ -408,6 +420,14 @@ export const defineDeserializer = (target) => {
         }
       }
     }
+
+    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+      for (const [eid, localEid] of localEntitiesToRemove) {
+        removeEntity(world, localEid)
+      }
+    }
+
+    // console.log("AFTER deserialize", localEntitiesToRemove)
 
     const ents = Array.from(deserializedEntities)
 

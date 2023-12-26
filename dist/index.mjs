@@ -235,7 +235,8 @@ var SparseSet = () => {
 var DESERIALIZE_MODE = {
   REPLACE: 0,
   APPEND: 1,
-  MAP: 2
+  MAP: 2,
+  MAP_REPLACING: 3
 };
 var resized = false;
 var setSerializationResized = (v) => {
@@ -406,6 +407,10 @@ var defineDeserializer = (target) => {
     }
     const localEntities = world[$localEntities];
     const localEntityLookup = world[$localEntityLookup];
+    let localEntitiesToRemove;
+    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+      localEntitiesToRemove = new Map(localEntities);
+    }
     const view = new DataView(packet);
     let where = 0;
     while (where < packet.byteLength) {
@@ -417,7 +422,10 @@ var defineDeserializer = (target) => {
       for (let i = 0; i < entityCount; i++) {
         let eid = view.getUint32(where);
         where += 4;
-        if (mode === DESERIALIZE_MODE.MAP) {
+        if (mode === DESERIALIZE_MODE.MAP_REPLACING && localEntities.has(eid)) {
+          localEntitiesToRemove.delete(eid);
+        }
+        if (mode === DESERIALIZE_MODE.MAP || mode === DESERIALIZE_MODE.MAP_REPLACING) {
           if (localEntities.has(eid)) {
             eid = localEntities.get(eid);
           } else if (newEntities.has(eid)) {
@@ -489,6 +497,11 @@ var defineDeserializer = (target) => {
           } else
             prop[eid] = value;
         }
+      }
+    }
+    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+      for (const [eid, localEid] of localEntitiesToRemove) {
+        removeEntity(world, localEid);
       }
     }
     const ents = Array.from(deserializedEntities);
