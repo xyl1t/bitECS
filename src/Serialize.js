@@ -1,7 +1,7 @@
 import { $indexBytes, $indexType, $isEidType, $serializeShadow, $storeBase, $storeFlattened, $tagStore, createShadow } from "./Storage.js"
-import { $componentMap, addComponent, hasComponent } from "./Component.js"
-import { $entityArray, $entitySparseSet, addEntity, eidToWorld, removeEntity } from "./Entity.js"
-import { $localEntities, $localEntityLookup } from "./World.js"
+import { $componentMap, addComponent, hasComponent, removeComponent } from "./Component.js"
+import { $entityArray, $entitySparseSet, addEntity, eidToWorld, entityExists, getEntityComponents, removeEntity } from "./Entity.js"
+import { $localEntities, $localEntityLookup, getAllEntities } from "./World.js"
 import { SparseSet } from "./Util.js"
 import { $modifier } from "./Query.js"
 
@@ -313,6 +313,13 @@ export const defineDeserializer = (target) => {
     const view = new DataView(packet)
     let where = 0
 
+    const componentsToRemove = new Map();
+    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+      getAllEntities(world).forEach(eid => {
+        componentsToRemove.set(eid, getEntityComponents(world, eid));
+      });
+    }
+
     while (where < packet.byteLength) {
 
       // pid
@@ -361,6 +368,10 @@ export const defineDeserializer = (target) => {
         const component = prop[$storeBase]()
         if (!hasComponent(world, component, eid)) {
           addComponent(world, component, eid)
+        }
+
+        if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+          componentsToRemove.set(eid, componentsToRemove.get(eid)?.filter(c => c !== component));
         }
 
         // add eid to deserialized ents after it has been transformed by MAP mode
@@ -424,6 +435,14 @@ export const defineDeserializer = (target) => {
     if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
       for (const [eid, localEid] of localEntitiesToRemove) {
         removeEntity(world, localEid)
+      }
+
+      for (const [eid, components] of componentsToRemove) {
+        if (components?.length && entityExists(world, eid)) {
+          for (const component of components) {
+            removeComponent(world, component, eid);
+          }
+        }
       }
     }
 

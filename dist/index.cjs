@@ -472,6 +472,12 @@ var defineDeserializer = (target) => {
     }
     const view = new DataView(packet);
     let where = 0;
+    const componentsToRemove = /* @__PURE__ */ new Map();
+    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+      getAllEntities(world).forEach((eid) => {
+        componentsToRemove.set(eid, getEntityComponents(world, eid));
+      });
+    }
     while (where < packet.byteLength) {
       const pid = view.getUint8(where);
       where += 1;
@@ -505,6 +511,9 @@ var defineDeserializer = (target) => {
         const component = prop[$storeBase]();
         if (!hasComponent(world, component, eid)) {
           addComponent(world, component, eid);
+        }
+        if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+          componentsToRemove.set(eid, componentsToRemove.get(eid)?.filter((c) => c !== component));
         }
         deserializedEntities.add(eid);
         if (component[$tagStore]) {
@@ -561,6 +570,13 @@ var defineDeserializer = (target) => {
     if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
       for (const [eid, localEid] of localEntitiesToRemove) {
         removeEntity(world, localEid);
+      }
+      for (const [eid, components2] of componentsToRemove) {
+        if (components2?.length && entityExists(world, eid)) {
+          for (const component of components2) {
+            removeComponent(world, component, eid);
+          }
+        }
       }
     }
     const ents = Array.from(deserializedEntities);
