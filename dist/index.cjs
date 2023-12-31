@@ -295,7 +295,7 @@ var DESERIALIZE_MODE = {
   REPLACE: 0,
   APPEND: 1,
   MAP: 2,
-  MAP_REPLACING: 3
+  SYNCHRONIZE: 3
 };
 var resized = false;
 var setSerializationResized = (v) => {
@@ -467,13 +467,13 @@ var defineDeserializer = (target) => {
     const localEntities = world[$localEntities];
     const localEntityLookup = world[$localEntityLookup];
     let localEntitiesToRemove;
-    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+    if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
       localEntitiesToRemove = new Map(localEntities);
     }
     const view = new DataView(packet);
     let where = 0;
     const componentsToRemove = /* @__PURE__ */ new Map();
-    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+    if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
       getAllEntities(world).forEach((eid) => {
         componentsToRemove.set(eid, getEntityComponents(world, eid));
       });
@@ -487,10 +487,10 @@ var defineDeserializer = (target) => {
       for (let i = 0; i < entityCount; i++) {
         let eid = view.getUint32(where);
         where += 4;
-        if (mode === DESERIALIZE_MODE.MAP_REPLACING && localEntities.has(eid)) {
+        if (mode === DESERIALIZE_MODE.SYNCHRONIZE && localEntities.has(eid)) {
           localEntitiesToRemove.delete(eid);
         }
-        if (mode === DESERIALIZE_MODE.MAP || mode === DESERIALIZE_MODE.MAP_REPLACING) {
+        if (mode === DESERIALIZE_MODE.MAP || mode === DESERIALIZE_MODE.SYNCHRONIZE) {
           if (localEntities.has(eid)) {
             eid = localEntities.get(eid);
           } else if (newEntities.has(eid)) {
@@ -512,7 +512,7 @@ var defineDeserializer = (target) => {
         if (!hasComponent(world, component, eid)) {
           addComponent(world, component, eid);
         }
-        if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+        if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
           componentsToRemove.set(eid, componentsToRemove.get(eid)?.filter((c) => c !== component));
         }
         deserializedEntities.add(eid);
@@ -567,7 +567,7 @@ var defineDeserializer = (target) => {
         }
       }
     }
-    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+    if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
       for (const [eid, localEid] of localEntitiesToRemove) {
         removeEntity(world, localEid);
       }

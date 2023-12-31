@@ -9,7 +9,7 @@ export const DESERIALIZE_MODE = {
   REPLACE: 0,
   APPEND: 1,
   MAP: 2,
-  MAP_REPLACING: 3
+  SYNCHRONIZE: 3
 }
 
 let resized = false
@@ -306,7 +306,7 @@ export const defineDeserializer = (target) => {
 
     // Map of entities to remove
     let localEntitiesToRemove;
-    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+    if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
       localEntitiesToRemove = new Map(localEntities);
     }
 
@@ -314,7 +314,7 @@ export const defineDeserializer = (target) => {
     let where = 0
 
     const componentsToRemove = new Map();
-    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+    if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
       getAllEntities(world).forEach(eid => {
         componentsToRemove.set(eid, getEntityComponents(world, eid));
       });
@@ -339,11 +339,11 @@ export const defineDeserializer = (target) => {
         where += 4
 
         // remove entity from list of entities to remove if the world has the entity
-        if (mode === DESERIALIZE_MODE.MAP_REPLACING && localEntities.has(eid)) {
+        if (mode === DESERIALIZE_MODE.SYNCHRONIZE && localEntities.has(eid)) {
           localEntitiesToRemove.delete(eid)
         }
 
-        if (mode === DESERIALIZE_MODE.MAP || mode === DESERIALIZE_MODE.MAP_REPLACING) {
+        if (mode === DESERIALIZE_MODE.MAP || mode === DESERIALIZE_MODE.SYNCHRONIZE) {
           if (localEntities.has(eid)) {
             eid = localEntities.get(eid)
           } else if (newEntities.has(eid)) {
@@ -370,7 +370,7 @@ export const defineDeserializer = (target) => {
           addComponent(world, component, eid)
         }
 
-        if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+        if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
           componentsToRemove.set(eid, componentsToRemove.get(eid)?.filter(c => c !== component));
         }
 
@@ -432,7 +432,7 @@ export const defineDeserializer = (target) => {
       }
     }
 
-    if (mode === DESERIALIZE_MODE.MAP_REPLACING) {
+    if (mode === DESERIALIZE_MODE.SYNCHRONIZE) {
       for (const [eid, localEid] of localEntitiesToRemove) {
         removeEntity(world, localEid)
       }
