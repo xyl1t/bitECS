@@ -54,7 +54,8 @@ declare module 'bitecs' {
   export enum DESERIALIZE_MODE {
     REPLACE,
     APPEND,
-    MAP
+    MAP,
+    SYNCHRONIZE
   }
 
   export type ComponentType<T extends ISchema> = {
